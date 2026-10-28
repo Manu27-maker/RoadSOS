@@ -1,0 +1,20 @@
+# local config
+local.properties
+*.iml
+
+# build outputs
+.gradle/
+build/
+app/build/
+.ktlin.d/
+.kotlin/
+
+# Android Studio / IntelliJ
+.idea/
+
+# keystore / signing
+*.keystore
+*.jks
+
+# native debug
+*.hprof

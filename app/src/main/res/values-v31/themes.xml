@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Android 12+ draws the system splash from the window background. Keep it
+        on-brand instead of letting the platform flash a light default surface.
+    -->
+    <style name="Theme.RoadSOS" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#070B12</item>
+        <item name="android:statusBarColor">#070B12</item>
+        <item name="android:navigationBarColor">#070B12</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:colorAccent">#EF4444</item>
+        <item name="android:windowSplashScreenBackground">#070B12</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_splash</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">#B91C1C</item>
+    </style>
+</resources>

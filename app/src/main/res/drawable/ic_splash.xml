@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ splash mark: white warning triangle on the red icon backdrop. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,28L83,79H25Z" />
+    <path
+        android:fillColor="#B91C1C"
+        android:pathData="M50.5,46h7v17h-7z" />
+    <path
+        android:fillColor="#B91C1C"
+        android:pathData="M50.5,67h7v7h-7z" />
+</vector>
