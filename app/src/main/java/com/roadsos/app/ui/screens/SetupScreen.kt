@@ -183,7 +183,7 @@ fun SetupScreen(vm: MainViewModel, snackbar: SnackbarHostState) {
 
                 HealthDetail(label = "Triage", value = "Rules + heuristic CV (v${vm.engineVersion})")
                 HealthDetail(label = "Network", value = "None - runs fully offline")
-                HealthDetail(label = "Dispatch", value = "3 seeded units · ranked ETA (no live routing)")
+                HealthDetail(label = "Dispatch", value = "Distance + ETA only · not route-aware")
                 HealthDetail(label = "Geocoder", value = "12 NH-44 landmarks · 6 km radius (demo)")
                 HealthDetail(label = "Alerts", value = "Simulated on-device · no SMS/WhatsApp/email")
                 HealthDetail(label = "Incidents", value = "${vm.stats?.incidents ?: 0} stored on this phone")

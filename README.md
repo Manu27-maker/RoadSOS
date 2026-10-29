@@ -6,6 +6,11 @@ geofencing all run on the phone. Contact alerts and driver pushes are **rendered
 but never sent** — there is no SMS, WhatsApp, email or push integration in this build. The React
 dashboard in `../frontend` is a separate product and is not linked to this app in any way.
 
+**Scope — location, not open routing.** This app solves **where** the crash is: exact GPS
+coordinates, a map link and a nearest-landmark label. It deliberately does **not** solve open
+routing: there is no live traffic, no road-closure feed and no route-aware dispatch. Responder
+units are ranked by straight-line distance with a flat ETA estimate.
+
 ```
 android/
 ├── settings.gradle.kts
@@ -55,7 +60,7 @@ A persistent **112** button is in the top bar on every screen.
 | Triage, fusion, storage, geocoding, ranking, geofence | **Real, on-device.** No server call, no `INTERNET` permission. |
 | Contact alerts | **Simulated.** One rendered message per contact with their channel label, shown as `3/3 alerted · mock delivery`. No SMS, WhatsApp, email or push is sent. |
 | Driver alerts / VMS / "broadcast" | **Simulated** on the phone (deterministic drivers, radius + bearing). No FCM and no connected cars. |
-| Responder "dispatch" | The nearest 3 seeded units ranked by distance with an estimated ETA. **No live routing or ambulance dispatch** — that belongs to the web product. |
+| Responder "dispatch" | The nearest 3 seeded units ranked by **straight-line distance** with a flat ETA. **No live routing, traffic or road-closure data, and the ranking is not route-aware.** Real dispatch belongs to the web product. |
 | Lifecycle strip | Reports filed here advance on a **45 s demo clock** per stage. Seeded incidents keep their curated statuses. |
 | Reverse geocoding | **12 landmarks** within 6 km of NH-44 / ORR; outside that it falls back to a coordinate label. Demo scale, not production coverage. |
 
@@ -172,7 +177,7 @@ indoors.
 |---|---|
 | Contact alerts are mock | Each contact gets a rendered message and a `Queued (mock)` status, but no SMS/WhatsApp/email/push is sent. A production path needs Twilio/WhatsApp Cloud API + consent + delivery receipts. |
 | Driver pushes are simulated | Drivers are generated deterministically from the incident id; the radius and ±65° bearing filter are real geometry, but there is no FCM, no connected-car SDK and no real vehicle. |
-| No live routing or ambulance dispatch | The three responder units are seeded. Distances are real haversine, ETAs use a flat 38 km/h + 2 min mobilisation, and no road network or dispatch service is contacted. Live routing lives in the separate web product. |
+| No live routing or ambulance dispatch | The three responder units are seeded. Ranking uses real haversine distance with a flat 38 km/h + 2 min mobilisation ETA — **not route-aware**, and there is no traffic or road-closure data. No road network or dispatch service is contacted. |
 | Geocoder is demo-scale | `OfflineGeocoder` knows **12 landmarks within 6 km of NH-44 / ORR**. Outside that radius it shows a coordinate label instead of a street address. Not production coverage. |
 | Triage is rules + heuristics | 23 English keyword rules with clause-scoped negation, and a luminance/colour/edge CV score. It is explainable and offline, not a trained crash model, and it is English-only. |
 | Lifecycle is a demo clock | Reports filed on this phone advance every **45 s** per stage so the strip moves during a pitch. Seeded incidents keep their curated statuses. |
