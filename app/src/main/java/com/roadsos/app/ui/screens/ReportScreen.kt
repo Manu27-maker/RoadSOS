@@ -791,7 +791,7 @@ private fun PhotoStep(
 ) {
     StepHeading(
         "Show us the scene",
-        "A photo lets responders see fire, rollovers and vehicle types before they arrive. You can skip this.",
+        "A photo gives responders fire, smoke and blockage hints. Vehicle type, colour and exact count are not detected. You can skip this.",
     )
 
     val photo = draft.photoPath?.let { File(it) }?.takeIf { it.exists() }
@@ -848,7 +848,7 @@ private fun PhotoStep(
             ) {
                 CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Cyan, strokeWidth = 2.dp)
                 Text(
-                    "Analysing photo with AI vision...",
+                    "Analysing photo on this device...",
                     color = Cyan,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(start = 8.dp),
@@ -937,7 +937,7 @@ private fun VisionPreview(vision: VisionResult) {
                 if (vision.overturned == true) add("Overturned")
                 if (vision.visibleInjuries == true) add("Injuries")
                 if (vision.lowLight == true) add("Low light")
-                vision.vehiclesCount?.takeIf { it > 0 }?.let { add("$it vehicles") }
+                vision.vehiclesCount?.takeIf { it > 0 }?.let { add("Multiple vehicles (tag)") }
             }
             if (flags.isNotEmpty()) {
                 Text(
@@ -947,6 +947,13 @@ private fun VisionPreview(vision: VisionResult) {
                     modifier = Modifier.padding(top = 8.dp),
                 )
             }
+            Text(
+                "Heuristic CV, not object detection: vehicle type, colour and exact count are not identified.",
+                color = TextDim,
+                fontSize = 9.sp,
+                lineHeight = 13.sp,
+                modifier = Modifier.padding(top = 8.dp),
+            )
         }
     }
 }
