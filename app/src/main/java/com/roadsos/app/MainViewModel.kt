@@ -160,12 +160,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     suspend fun refreshRoute() {
         val id = draft.submitted?.id ?: return
-        draft.route = LocalEngine.routePlan(
-            incidentId = id,
-            online = onlineRouting,
-            onlineAvailable = hasInternet(getApplication()),
-            apiKey = BuildConfig.DIRECTIONS_API_KEY,
-        )
+        draft.route = runCatching {
+            LocalEngine.routePlan(
+                incidentId = id,
+                online = onlineRouting,
+                onlineAvailable = hasInternet(getApplication()),
+                apiKey = BuildConfig.DIRECTIONS_API_KEY,
+            )
+        }.getOrNull()
     }
 
     // ---------------------------------------------------------------- contacts
