@@ -63,7 +63,7 @@ A persistent **112** button is in the top bar on every screen.
 | Responder "dispatch" | The nearest 3 seeded units ranked by **straight-line distance** with a flat ETA. **No live routing, traffic or road-closure data, and the ranking is not route-aware.** Real dispatch belongs to the web product. |
 | Lifecycle strip | Reports filed here advance on a **45 s demo clock** per stage. Seeded incidents keep their curated statuses. |
 | Reverse geocoding | **12 landmarks** within 6 km of NH-44 / ORR; outside that it falls back to a coordinate label. Demo scale, not production coverage. |
-| Vehicle type / colour / count | **Not detected.** Photo triage is colour/edge heuristic CV, not object detection. `vehiclesCount` is 0 unless you tap *Multiple vehicles*, in which case it is a reporter tag (2), not a count. |
+| Vehicle type / colour / count | **Not detected.** Photo triage is colour/edge heuristic CV, not object detection. `vehiclesCount` is always **0**; the *Multiple vehicles* tag feeds the text rules, not vision. |
 
 This is **not** the React/Flask dashboard in `../frontend` + `../backend`. The two products share
 only the demo scenario; the Android app has no server URL and no network code.
@@ -181,7 +181,7 @@ indoors.
 | No live routing or ambulance dispatch | The three responder units are seeded. Ranking uses real haversine distance with a flat 38 km/h + 2 min mobilisation ETA — **not route-aware**, and there is no traffic or road-closure data. No road network or dispatch service is contacted. |
 | Geocoder is demo-scale | `OfflineGeocoder` knows **12 landmarks within 6 km of NH-44 / ORR**. Outside that radius it shows a coordinate label instead of a street address. Not production coverage. |
 | Triage is rules + heuristics | 23 English keyword rules with clause-scoped negation, and a luminance/colour/edge CV score. It is explainable and offline, not a trained crash model, and it is English-only. |
-| No object detection | The photo engine can hint at fire/smoke, low light and a busy/blocked scene, but it cannot identify vehicle types, colours or reliable counts. `vehiclesCount` is 0 or the reporter's *Multiple vehicles* tag (2). Do not present it as detection. |
+| No object detection | The photo engine can hint at fire/smoke, low light and a busy/blocked scene, but it cannot identify vehicle types, colours or reliable counts. `vehiclesCount` is always 0; *Multiple vehicles* is a reporter tag handled by the text rules. Do not present it as detection. |
 | Lifecycle is a demo clock | Reports filed on this phone advance every **45 s** per stage so the strip moves during a pitch. Seeded incidents keep their curated statuses. |
 | Local-only, single device | Max 5 contacts, one JSON database, no multi-device sync, no responder login. |
 | Demo signing | The release APK is signed with the local debug keystore so it installs on any test phone. Replace the signing config before publishing. |

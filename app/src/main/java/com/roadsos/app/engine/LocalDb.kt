@@ -166,7 +166,7 @@ class LocalDb(context: Context) {
             overturned = true,
             visibleInjuries = false,
             lowLight = true,
-            vehiclesCount = 2,
+            vehiclesCount = 0,
         )
         val crashFusion = SeverityFusion.fuse(crashText, crashVision)
 
@@ -218,7 +218,7 @@ class LocalDb(context: Context) {
             overturned = false,
             visibleInjuries = false,
             lowLight = false,
-            vehiclesCount = 4,
+            vehiclesCount = 0,
         )
         val pileupFusion = SeverityFusion.fuse(pileupText, pileupVision)
 

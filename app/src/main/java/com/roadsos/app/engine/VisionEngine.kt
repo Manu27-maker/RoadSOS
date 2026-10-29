@@ -223,13 +223,13 @@ object VisionEngine {
         var overturned = result.overturned
         var injuries = result.visibleInjuries
         var blocked = result.roadBlocked
-        var vehicles = result.vehiclesCount ?: 0
 
         sceneTags["fire_or_smoke"]?.let { fire = it }
         sceneTags["overturned_vehicle"]?.let { overturned = it }
         sceneTags["visible_injuries"]?.let { injuries = it }
         sceneTags["road_blocked"]?.let { blocked = it }
-        if (sceneTags["multiple_vehicles"] == true) vehicles = maxOf(vehicles, 2)
+        // "multiple_vehicles" is a reporter tag consumed by the text rules.
+        // The photo engine has no object detection, so it never invents a count.
 
         var severity = result.severity ?: "Medium"
         if (fire == true || overturned == true || injuries == true) {
@@ -249,7 +249,7 @@ object VisionEngine {
             overturned = overturned,
             visibleInjuries = injuries,
             roadBlocked = blocked,
-            vehiclesCount = vehicles,
+            vehiclesCount = 0,
             lowLight = result.lowLight == true,
         )
     }

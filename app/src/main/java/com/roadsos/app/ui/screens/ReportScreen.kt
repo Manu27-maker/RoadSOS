@@ -937,7 +937,6 @@ private fun VisionPreview(vision: VisionResult) {
                 if (vision.overturned == true) add("Overturned")
                 if (vision.visibleInjuries == true) add("Injuries")
                 if (vision.lowLight == true) add("Low light")
-                vision.vehiclesCount?.takeIf { it > 0 }?.let { add("Multiple vehicles (tag)") }
             }
             if (flags.isNotEmpty()) {
                 Text(
