@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -856,7 +857,7 @@ private fun PhotoStep(
             }
         }
 
-        draft.vision?.let { vision -> VisionPreview(vision) }
+        draft.vision?.let { vision -> VisionPreview(vision, onRetry = onRetry) }
 
         if (error != null) {
             ErrorNote(error)
@@ -911,7 +912,7 @@ private fun PhotoStep(
 }
 
 @Composable
-private fun VisionPreview(vision: VisionResult) {
+private fun VisionPreview(vision: VisionResult, onRetry: (() -> Unit)? = null) {
     val cloud = vision.engine?.startsWith("groq") == true
     val accent = severityColor(vision.severity)
     val vehicleLabels = setOf("Vehicles", "Types", "Colours", "Number plate")
@@ -1061,6 +1062,20 @@ private fun VisionPreview(vision: VisionResult) {
                 lineHeight = 13.sp,
                 modifier = Modifier.padding(top = 6.dp),
             )
+
+            if (onRetry != null) {
+                TextButton(
+                    onClick = onRetry,
+                    contentPadding = PaddingValues(horizontal = 0.dp, vertical = 6.dp),
+                ) {
+                    Text(
+                        if (cloud) "Analyse again" else "Retry with cloud vision",
+                        color = Cyan,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
         }
     }
 }
