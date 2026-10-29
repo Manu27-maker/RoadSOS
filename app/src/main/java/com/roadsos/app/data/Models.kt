@@ -104,6 +104,28 @@ data class SuggestedUnit(
     @SerializedName("eta_min") val etaMin: Double? = null,
 )
 
+/**
+ * A single route from the nearest available unit to the incident.
+ *
+ * `engine = "google-directions"` means the numbers came from the Directions
+ * API with `departure_time=now` (traffic-aware when Google returns
+ * `duration_in_traffic`). `engine = "offline-estimate"` is always the
+ * straight-line distance at 38 km/h + 2 min mobilisation, never a fabricated
+ * route. `status` explains why the fallback was used.
+ */
+@Immutable
+data class RoutePlan(
+    val engine: String = "offline-estimate",
+    val status: String = "off",        // live | fallback | off | no-key | unreachable
+    @SerializedName("distance_km") val distanceKm: Double? = null,
+    @SerializedName("duration_min") val durationMin: Double? = null,
+    @SerializedName("traffic_duration_min") val trafficDurationMin: Double? = null,
+    @SerializedName("eta_min") val etaMin: Double? = null,
+    @SerializedName("traffic_delay_min") val trafficDelayMin: Double? = null,
+    val summary: String? = null,
+    val note: String? = null,
+)
+
 @Immutable
 data class IncidentListResponse(
     val incidents: List<Incident>? = null,

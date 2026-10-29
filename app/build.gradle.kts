@@ -1,7 +1,27 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+}
+
+/**
+ * Optional online routing key. Never committed: provide it in the untracked
+ * `android/local.properties` (GOOGLE_DIRECTIONS_API_KEY=...) or in the
+ * environment. An empty value keeps the app fully offline and the toggle
+ * falls back to the distance-only estimate.
+ */
+val directionsApiKey: String = run {
+    val props = Properties()
+    val local = rootProject.file("local.properties")
+    if (local.exists()) local.inputStream().use { props.load(it) }
+    (props.getProperty("GOOGLE_DIRECTIONS_API_KEY")
+        ?: System.getenv("GOOGLE_DIRECTIONS_API_KEY")
+        ?: "")
+        .trim()
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
 }
 
 android {
@@ -14,6 +34,8 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
+
+        buildConfigField("String", "DIRECTIONS_API_KEY", "\"$directionsApiKey\"")
     }
 
     buildTypes {
@@ -35,6 +57,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {

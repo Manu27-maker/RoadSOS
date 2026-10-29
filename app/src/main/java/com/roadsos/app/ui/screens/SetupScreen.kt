@@ -39,6 +39,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -68,6 +70,7 @@ import com.roadsos.app.ui.PanelCard
 import com.roadsos.app.ui.SecondaryAction
 import com.roadsos.app.ui.SectionLabel
 
+import com.roadsos.app.ui.theme.Amber
 import com.roadsos.app.ui.theme.Cyan
 import com.roadsos.app.ui.theme.Green
 import com.roadsos.app.ui.theme.Panel
@@ -144,7 +147,8 @@ fun SetupScreen(vm: MainViewModel, snackbar: SnackbarHostState) {
         Spacer(Modifier.height(6.dp))
         Text("Setup", color = TextMain, style = MaterialTheme.typography.headlineMedium)
         Text(
-            "Everything runs on this phone - triage, storage and alerts. No server, no network.",
+            "Everything runs on this phone - triage, storage and alerts. No server. " +
+                "Live routing is used automatically when online; switch it off to force offline.",
             color = TextMuted,
             fontSize = 12.sp,
             lineHeight = 17.sp,
@@ -182,8 +186,22 @@ fun SetupScreen(vm: MainViewModel, snackbar: SnackbarHostState) {
                 }
 
                 HealthDetail(label = "Triage", value = "Rules + heuristic CV (v${vm.engineVersion})")
-                HealthDetail(label = "Network", value = "None - runs fully offline")
-                HealthDetail(label = "Dispatch", value = "Distance + ETA only · not route-aware")
+                HealthDetail(
+                    label = "Network",
+                    value = if (vm.onlineRouting) {
+                        "Auto - live route when internet is available"
+                    } else {
+                        "Forced off - no network calls"
+                    },
+                )
+                HealthDetail(
+                    label = "Dispatch",
+                    value = if (vm.onlineRouting) {
+                        "Live route when available · else distance + ETA"
+                    } else {
+                        "Distance + ETA only · not route-aware"
+                    },
+                )
                 HealthDetail(label = "Geocoder", value = "12 NH-44 landmarks · 6 km radius (demo)")
                 HealthDetail(label = "Alerts", value = "Simulated on-device · no SMS/WhatsApp/email")
                 HealthDetail(label = "Incidents", value = "${vm.stats?.incidents ?: 0} stored on this phone")
@@ -202,6 +220,98 @@ fun SetupScreen(vm: MainViewModel, snackbar: SnackbarHostState) {
                     color = TextDim,
                     fontSize = 10.sp,
                     lineHeight = 14.sp,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+            }
+        }
+
+        Spacer(Modifier.height(14.dp))
+
+        // -------------------------------------------------------- online mode
+        SectionLabel("Online mode (optional)")
+        Spacer(Modifier.height(8.dp))
+        PanelCard(accent = if (vm.onlineRouting) Cyan else null) {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "Online mode: live routing",
+                            color = TextMain,
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            if (vm.onlineRouting) "AUTO - live when online" else "FORCED OFF - fully offline",
+                            color = if (vm.onlineRouting) Cyan else TextMuted,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 0.4.sp,
+                            modifier = Modifier.padding(top = 2.dp),
+                        )
+                    }
+                    Switch(
+                        checked = vm.onlineRouting,
+                        onCheckedChange = { enabled ->
+                            vm.setOnlineMode(enabled)
+                            scope.launch {
+                                snackbar.showSnackbar(
+                                    if (enabled) {
+                                        "Online routing auto: live when internet is available."
+                                    } else {
+                                        "Online routing forced off. The app is fully offline."
+                                    },
+                                )
+                            }
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.Black,
+                            checkedTrackColor = Cyan,
+                            uncheckedThumbColor = TextMuted,
+                            uncheckedTrackColor = PanelRaised,
+                            uncheckedBorderColor = Stroke,
+                        ),
+                    )
+                }
+
+                Text(
+                    "Online routing is automatic. When the phone has a validated internet connection, " +
+                        "RoadSOS sends the crash coordinates and the nearest unit's base coordinates " +
+                        "to Google Directions when a key is configured (traffic-aware ETA), or to the " +
+                        "OSRM public demo server otherwise (real road route, no traffic data). " +
+                        "Names, contacts, photos and report text are never sent. " +
+                        "Offline, or with this switch off, the ETA stays a straight-line estimate.",
+                    color = TextMuted,
+                    fontSize = 10.sp,
+                    lineHeight = 15.sp,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier
+                            .size(7.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(if (vm.directionsKeyConfigured) Green else Amber),
+                    )
+                    Text(
+                        if (vm.directionsKeyConfigured) {
+                            "Directions key configured - traffic-aware route when Google returns it"
+                        } else {
+                            "No Directions key - using OSRM (road route, no traffic) when online"
+                        },
+                        color = if (vm.directionsKeyConfigured) TextMuted else Amber,
+                        fontSize = 9.sp,
+                        lineHeight = 13.sp,
+                        modifier = Modifier.padding(start = 6.dp),
+                    )
+                }
+
+                Text(
+                    "The key is injected at build time from the untracked local.properties and is " +
+                        "extractable from the APK. Restrict it by package name and SHA-1 in Google Cloud.",
+                    color = TextDim,
+                    fontSize = 9.sp,
+                    lineHeight = 13.sp,
                     modifier = Modifier.padding(top = 6.dp),
                 )
             }

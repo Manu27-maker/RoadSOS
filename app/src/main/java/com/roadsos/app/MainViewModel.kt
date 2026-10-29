@@ -12,6 +12,7 @@ import com.roadsos.app.data.CreateIncidentRequest
 import com.roadsos.app.data.Fusion
 import com.roadsos.app.data.Incident
 import com.roadsos.app.data.NotifySummary
+import com.roadsos.app.data.RoutePlan
 import com.roadsos.app.data.Store
 import com.roadsos.app.data.SuggestedUnit
 import com.roadsos.app.data.TextResult
@@ -19,6 +20,7 @@ import com.roadsos.app.data.VisionResult
 import com.roadsos.app.engine.DbStats
 import com.roadsos.app.engine.LocalEngine
 import com.roadsos.app.util.currentLocation
+import com.roadsos.app.util.hasInternet
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -55,6 +57,7 @@ class ReportDraft {
     var notifications by mutableStateOf<NotifySummary?>(null)
     var fusion by mutableStateOf<Fusion?>(null)
     var units by mutableStateOf<List<SuggestedUnit>>(emptyList())
+    var route by mutableStateOf<RoutePlan?>(null)
 
     fun hasSignal(): Boolean = description.isNotBlank() || tags.values.any { it }
 
@@ -85,6 +88,7 @@ class ReportDraft {
         notifications = null
         fusion = null
         units = emptyList()
+        route = null
     }
 }
 
@@ -102,6 +106,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var reporterPhone by mutableStateOf(store.reporterPhone)
         private set
+
+    /** Off by default; the only switch that can allow a socket. */
+    var onlineRouting by mutableStateOf(store.onlineRouting)
+        private set
+
+    val directionsKeyConfigured: Boolean get() = BuildConfig.DIRECTIONS_API_KEY.isNotBlank()
 
     val deviceId: String get() = store.deviceId
     val engineVersion: String get() = LocalEngine.engineVersion()
@@ -133,6 +143,29 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun resetDemoData() {
         draft.clear()
         stats = LocalEngine.resetDemoData()
+    }
+
+    /**
+     * Persist the explicit opt-in. Turning it on after a report is filed
+     * re-requests the route; turning it off immediately drops back to the
+     * offline estimate.
+     */
+    fun setOnlineMode(enabled: Boolean) {
+        onlineRouting = enabled
+        store.onlineRouting = enabled
+        if (draft.submitted != null) {
+            viewModelScope.launch { refreshRoute() }
+        }
+    }
+
+    suspend fun refreshRoute() {
+        val id = draft.submitted?.id ?: return
+        draft.route = LocalEngine.routePlan(
+            incidentId = id,
+            online = onlineRouting,
+            onlineAvailable = hasInternet(getApplication()),
+            apiKey = BuildConfig.DIRECTIONS_API_KEY,
+        )
     }
 
     // ---------------------------------------------------------------- contacts
@@ -274,8 +307,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         draft.notifications = response.notifications
         draft.fusion = response.fusion
         draft.units = response.units.orEmpty()
+        draft.route = null
         draft.step = 4
         refreshStatus()
+        // Online routing can take a few seconds; never block the success screen.
+        viewModelScope.launch { refreshRoute() }
         return Result.success(incident)
     }
 

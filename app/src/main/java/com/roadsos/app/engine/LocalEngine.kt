@@ -14,6 +14,7 @@ import com.roadsos.app.data.NotifyResponse
 import com.roadsos.app.data.NotifySummary
 import com.roadsos.app.data.PushInfo
 import com.roadsos.app.data.ReverseGeo
+import com.roadsos.app.data.RoutePlan
 import com.roadsos.app.data.SafeResponse
 import com.roadsos.app.data.SuggestedUnit
 import com.roadsos.app.data.TextResult
@@ -30,8 +31,9 @@ import kotlin.math.roundToInt
  * The whole RoadSOS pipeline, on the phone.
  *
  * Triage, fusion, storage, contact alerts, responder ranking, geofencing and
- * the highway board all run here. Nothing is uploaded and no permission is
- * needed for the network because the app never opens a socket.
+ * the highway board all run here. The only optional network call is
+ * [RoutingEngine], reached only when the user turns on online routing; with
+ * the toggle off (the default) the app never opens a socket.
  */
 object LocalEngine {
 
@@ -384,6 +386,32 @@ object LocalEngine {
             status = "Queued (mock)",
         )
     }
+
+    // ------------------------------------------------------------------ routing
+    /**
+     * Route from the nearest available unit to the incident. Returns null when
+     * the incident or its coordinates are missing; otherwise always returns a
+     * plan, with [RoutePlan.status] explaining whether it is live or offline.
+     */
+    suspend fun routePlan(
+        incidentId: String,
+        online: Boolean,
+        onlineAvailable: Boolean,
+        apiKey: String,
+    ): RoutePlan? =
+        withContext(Dispatchers.IO) {
+            val state = db.state()
+            val incident = state.incidents
+                .firstOrNull { it.incident.id == incidentId }
+                ?.incident ?: return@withContext null
+            val lat = incident.lat ?: return@withContext null
+            val lng = incident.lng ?: return@withContext null
+            val unit = state.responders
+                .filter { it.status == "available" }
+                .minByOrNull { GeoMath.haversineKm(it.lat, it.lng, lat, lng) }
+                ?: return@withContext null
+            RoutingEngine.route(unit.lat, unit.lng, lat, lng, online, onlineAvailable, apiKey)
+        }
 
     private fun rankResponders(incident: Incident, limit: Int = 3): List<SuggestedUnit> {
         val lat = incident.lat ?: return emptyList()

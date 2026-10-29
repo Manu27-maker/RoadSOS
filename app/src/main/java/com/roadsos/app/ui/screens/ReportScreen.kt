@@ -1323,6 +1323,109 @@ private fun SuccessStep(
                         )
                     }
                 }
+                Text(
+                    "Ranked by straight-line distance; these ETAs use a flat 38 km/h + 2 min mobilisation.",
+                    color = TextDim,
+                    fontSize = 9.sp,
+                    lineHeight = 13.sp,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+        }
+    }
+
+    draft.route?.let { route ->
+        val trafficAware = route.engine == "google-directions" && route.trafficDurationMin != null
+        val online = route.status == "live" || route.status == "osrm"
+        val accent = when {
+            trafficAware -> Cyan
+            online -> Green
+            else -> Amber
+        }
+        val badge = when {
+            trafficAware -> "LIVE TRAFFIC"
+            online -> "ROAD ROUTE"
+            else -> "OFFLINE ESTIMATE"
+        }
+        Spacer(Modifier.height(12.dp))
+        PanelCard(accent = accent) {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SectionLabel("Route to scene")
+                    Spacer(Modifier.weight(1f))
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = accent.copy(alpha = 0.14f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, accent.copy(alpha = 0.4f)),
+                    ) {
+                        Text(
+                            badge,
+                            color = accent,
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.7.sp,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        )
+                    }
+                }
+
+                Text(
+                    buildString {
+                        append(route.distanceKm?.let { String.format(Locale.US, "%.1f km", it) } ?: "-")
+                        append(" · ETA ")
+                        append(route.etaMin?.let { String.format(Locale.US, "%.0f", it) } ?: "?")
+                        append(" min")
+                    },
+                    color = TextMain,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+
+                if (route.trafficDurationMin != null) {
+                    Text(
+                        buildString {
+                            append("Traffic-aware driving time ")
+                            append(String.format(Locale.US, "%.0f", route.trafficDurationMin))
+                            append(" min")
+                            route.trafficDelayMin?.let {
+                                append(" · traffic adds ")
+                                append(String.format(Locale.US, "%.0f", it))
+                                append(" min")
+                            }
+                        },
+                        color = TextMuted,
+                        fontSize = 10.sp,
+                        modifier = Modifier.padding(top = 3.dp),
+                    )
+                }
+
+                route.summary?.let {
+                    Text("via $it", color = TextMuted, fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp))
+                }
+
+                route.note?.let {
+                    Text(
+                        it,
+                        color = TextDim,
+                        fontSize = 9.sp,
+                        lineHeight = 13.sp,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
+
+                if (online) {
+                    Text(
+                        if (trafficAware) {
+                            "Source: Google Directions, departure_time=now. Only coordinates were sent."
+                        } else {
+                            "Source: OSRM public demo server. Only coordinates were sent; no traffic data."
+                        },
+                        color = TextDim,
+                        fontSize = 9.sp,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
             }
         }
     }

@@ -31,6 +31,11 @@ class Store(context: Context) {
         get() = prefs.getString(KEY_PHONE, "") ?: ""
         set(value) = prefs.edit().putString(KEY_PHONE, value).apply()
 
+    /** Automatic by default: online when the phone has internet, offline otherwise. */
+    var onlineRouting: Boolean
+        get() = prefs.getBoolean(KEY_ONLINE_ROUTING, true)
+        set(value) = prefs.edit().putBoolean(KEY_ONLINE_ROUTING, value).apply()
+
     fun loadContacts(): List<Contact> {
         val raw = prefs.getString(KEY_CONTACTS, null) ?: run {
             val seeded = demoContacts()
@@ -55,5 +60,6 @@ class Store(context: Context) {
         private const val KEY_NAME = "reporter_name"
         private const val KEY_PHONE = "reporter_phone"
         private const val KEY_CONTACTS = "contacts"
+        private const val KEY_ONLINE_ROUTING = "online_routing"
     }
 }
