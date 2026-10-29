@@ -36,6 +36,20 @@ class Store(context: Context) {
         get() = prefs.getBoolean(KEY_ONLINE_ROUTING, true)
         set(value) = prefs.edit().putBoolean(KEY_ONLINE_ROUTING, value).apply()
 
+    /** Cloud photo analysis is automatic too; the heuristic still runs first. */
+    var onlineVision: Boolean
+        get() = prefs.getBoolean(KEY_ONLINE_VISION, true)
+        set(value) = prefs.edit().putBoolean(KEY_ONLINE_VISION, value).apply()
+
+    /**
+     * Optional runtime Groq key, typed in Setup and stored only on this phone.
+     * Empty means the build-time key (if any) is used. Never uploaded anywhere
+     * except as the Authorization header of the vision request.
+     */
+    var groqKey: String
+        get() = prefs.getString(KEY_GROQ_KEY, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_GROQ_KEY, value.trim()).apply()
+
     fun loadContacts(): List<Contact> {
         val raw = prefs.getString(KEY_CONTACTS, null) ?: run {
             val seeded = demoContacts()
@@ -61,5 +75,7 @@ class Store(context: Context) {
         private const val KEY_PHONE = "reporter_phone"
         private const val KEY_CONTACTS = "contacts"
         private const val KEY_ONLINE_ROUTING = "online_routing"
+        private const val KEY_ONLINE_VISION = "online_vision"
+        private const val KEY_GROQ_KEY = "groq_key"
     }
 }

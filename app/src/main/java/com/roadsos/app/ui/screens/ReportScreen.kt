@@ -791,7 +791,7 @@ private fun PhotoStep(
 ) {
     StepHeading(
         "Show us the scene",
-        "A photo gives responders fire, smoke and blockage hints. Vehicle type, colour and exact count are not detected. You can skip this.",
+        "Online, a vision model reads vehicle count, type and colour from the photo. Offline, you still get measured scene metrics. You can skip this.",
     )
 
     val photo = draft.photoPath?.let { File(it) }?.takeIf { it.exists() }
@@ -848,7 +848,7 @@ private fun PhotoStep(
             ) {
                 CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Cyan, strokeWidth = 2.dp)
                 Text(
-                    "Analysing photo on this device...",
+                    "Analysing photo - cloud vision when online...",
                     color = Cyan,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(start = 8.dp),
@@ -901,7 +901,8 @@ private fun PhotoStep(
         icon = Icons.AutoMirrored.Filled.ArrowForward,
     )
     Text(
-        "Photos are re-encoded on this phone to strip EXIF/GPS metadata.",
+        "Photos are re-encoded on this phone to strip EXIF/GPS metadata. With cloud vision on " +
+            "and internet available, only that cleaned JPEG is sent to Groq.",
         color = TextDim,
         fontSize = 10.sp,
         textAlign = TextAlign.Center,
@@ -911,17 +912,41 @@ private fun PhotoStep(
 
 @Composable
 private fun VisionPreview(vision: VisionResult) {
-    PanelCard(modifier = Modifier.padding(top = 12.dp), accent = severityColor(vision.severity)) {
+    val cloud = vision.engine?.startsWith("groq") == true
+    val accent = severityColor(vision.severity)
+    val vehicleLabels = setOf("Vehicles", "Types", "Colours", "Number plate")
+
+    PanelCard(modifier = Modifier.padding(top = 12.dp), accent = accent) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 SeverityChip(severity = vision.severity, score = vision.score)
                 Spacer(Modifier.weight(1f))
-                Text(
-                    "confidence ${((vision.confidence ?: 0.0) * 100).toInt()}%",
-                    color = TextDim,
-                    fontSize = 10.sp,
-                )
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = (if (cloud) Cyan else TextMuted).copy(alpha = 0.13f),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        (if (cloud) Cyan else TextMuted).copy(alpha = 0.4f),
+                    ),
+                ) {
+                    Text(
+                        if (cloud) "CLOUD VISION" else "ON-DEVICE CV",
+                        color = if (cloud) Cyan else TextMuted,
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.7.sp,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                    )
+                }
             }
+
+            Text(
+                "confidence ${vision.confidence?.let { "${(it * 100).toInt()}%" } ?: "-"}",
+                color = TextDim,
+                fontSize = 10.sp,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+
             vision.summary?.let {
                 Text(
                     it,
@@ -931,6 +956,72 @@ private fun VisionPreview(vision: VisionResult) {
                     modifier = Modifier.padding(top = 8.dp),
                 )
             }
+
+            val types = vision.vehicleTypes.orEmpty()
+            val colors = vision.vehicleColors.orEmpty()
+            if (vision.vehiclesCount != null || types.isNotEmpty() || colors.isNotEmpty()) {
+                Text(
+                    "VEHICLES",
+                    color = TextDim,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.8.sp,
+                    modifier = Modifier.padding(top = 10.dp),
+                )
+                Text(
+                    buildString {
+                        append(vision.vehiclesCount?.let { "$it detected" } ?: "count not returned")
+                        if (types.isNotEmpty()) append(" · ${types.joinToString(", ")}")
+                        if (colors.isNotEmpty()) append(" · ${colors.joinToString(", ")}")
+                    },
+                    color = TextMain,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 3.dp),
+                )
+                vision.numberPlate?.let {
+                    Text(
+                        "Number plate: $it",
+                        color = Amber,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.padding(top = 3.dp),
+                    )
+                }
+            }
+
+            val details = vision.analysisDetails.orEmpty()
+                .filterNot { it.label in vehicleLabels }
+            if (details.isNotEmpty()) {
+                Text(
+                    "ANALYSIS DETAILS",
+                    color = TextDim,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.8.sp,
+                    modifier = Modifier.padding(top = 10.dp),
+                )
+                details.forEach { detail ->
+                    Row(
+                        Modifier.fillMaxWidth().padding(top = 4.dp),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Text(
+                            detail.label,
+                            color = TextMuted,
+                            fontSize = 10.sp,
+                            modifier = Modifier.weight(0.45f),
+                        )
+                        Text(
+                            detail.value,
+                            color = TextMain,
+                            fontSize = 10.sp,
+                            modifier = Modifier.weight(0.55f),
+                        )
+                    }
+                }
+            }
+
             val flags = buildList {
                 if (vision.fireOrSmoke == true) add("Fire / smoke")
                 if (vision.roadBlocked == true) add("Road blocked")
@@ -943,15 +1034,32 @@ private fun VisionPreview(vision: VisionResult) {
                     flags.joinToString(" · "),
                     color = TextMuted,
                     fontSize = 11.sp,
+                    modifier = Modifier.padding(top = 10.dp),
+                )
+            }
+
+            vision.note?.let {
+                Text(
+                    it,
+                    color = TextDim,
+                    fontSize = 9.sp,
+                    lineHeight = 13.sp,
                     modifier = Modifier.padding(top = 8.dp),
                 )
             }
+
             Text(
-                "Heuristic CV, not object detection: vehicle type, colour and exact count are not identified.",
+                if (cloud) {
+                    "Source: ${vision.engine?.removePrefix("groq:")?.removeSuffix("+reporter-tags") ?: "Groq"} · " +
+                        "sanitized JPEG only, no EXIF/GPS. Model output is unverified."
+                } else {
+                    "Source: on-device heuristic CV, not object detection. " +
+                        "Vehicle type, colour and count need cloud vision."
+                },
                 color = TextDim,
                 fontSize = 9.sp,
                 lineHeight = 13.sp,
-                modifier = Modifier.padding(top = 8.dp),
+                modifier = Modifier.padding(top = 6.dp),
             )
         }
     }

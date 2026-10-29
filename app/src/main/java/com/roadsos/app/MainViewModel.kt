@@ -107,11 +107,25 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     var reporterPhone by mutableStateOf(store.reporterPhone)
         private set
 
-    /** Off by default; the only switch that can allow a socket. */
+    /** Automatic by default; the switch can force routing offline. */
     var onlineRouting by mutableStateOf(store.onlineRouting)
         private set
 
+    /** Automatic cloud photo analysis; the on-device heuristic always runs first. */
+    var onlineVision by mutableStateOf(store.onlineVision)
+        private set
+
+    /** Runtime Groq key typed in Setup (never the value itself, only presence). */
+    var runtimeGroqKey by mutableStateOf(store.groqKey)
+        private set
+
     val directionsKeyConfigured: Boolean get() = BuildConfig.DIRECTIONS_API_KEY.isNotBlank()
+    val groqKeyFromBuild: Boolean get() = BuildConfig.GROQ_API_KEY.isNotBlank()
+    val groqKeyFromUser: Boolean get() = runtimeGroqKey.isNotBlank()
+    val groqKeyConfigured: Boolean get() = groqKeyFromBuild || groqKeyFromUser
+    val groqModel: String get() = BuildConfig.GROQ_VISION_MODEL
+
+    private fun effectiveGroqKey(): String = runtimeGroqKey.ifBlank { BuildConfig.GROQ_API_KEY }
 
     val deviceId: String get() = store.deviceId
     val engineVersion: String get() = LocalEngine.engineVersion()
@@ -156,6 +170,32 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (draft.submitted != null) {
             viewModelScope.launch { refreshRoute() }
         }
+    }
+
+    fun setOnlineVisionEnabled(enabled: Boolean) {
+        onlineVision = enabled
+        store.onlineVision = enabled
+    }
+
+    /** Returns an error message, or null when the key was saved. */
+    fun saveGroqKey(key: String): String? {
+        val trimmed = key.trim()
+        if (trimmed.isEmpty()) {
+            runtimeGroqKey = ""
+            store.groqKey = ""
+            return null
+        }
+        if (trimmed.length < 20 || trimmed.any { it.isWhitespace() }) {
+            return "That does not look like an API key. Paste the full Groq key."
+        }
+        runtimeGroqKey = trimmed
+        store.groqKey = trimmed
+        return null
+    }
+
+    fun clearGroqKey() {
+        runtimeGroqKey = ""
+        store.groqKey = ""
     }
 
     suspend fun refreshRoute() {
@@ -259,7 +299,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (!file.exists()) return Result.failure(IllegalStateException("The photo file is missing."))
         val activeTags = draft.tags.filterValues { it }
         val description = draft.description.trim()
-        val result = runCatching { LocalEngine.analyzePhoto(file, description, activeTags) }
+        val result = runCatching {
+            LocalEngine.analyzePhoto(
+                file = file,
+                description = description,
+                sceneTags = activeTags,
+                cloudEnabled = onlineVision,
+                cloudAvailable = hasInternet(getApplication()),
+                groqKey = effectiveGroqKey(),
+                groqModel = groqModel,
+            )
+        }
         val payload = result.getOrNull()
             ?: return Result.failure(result.exceptionOrNull() ?: IllegalStateException("The photo could not be analysed."))
         draft.imageId = payload.first

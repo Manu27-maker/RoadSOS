@@ -7,10 +7,15 @@ plugins {
 }
 
 /**
- * Optional online routing key. Never committed: provide it in the untracked
- * `android/local.properties` (GOOGLE_DIRECTIONS_API_KEY=...) or in the
- * environment. An empty value keeps the app fully offline and the toggle
- * falls back to the distance-only estimate.
+ * Optional online keys. Never committed: provide them in the untracked
+ * `android/local.properties` or in the environment.
+ *
+ *   GOOGLE_DIRECTIONS_API_KEY=...   traffic-aware route (otherwise OSRM)
+ *   GROQ_API_KEY=...                cloud vision for vehicle details
+ *   GROQ_VISION_MODEL=...           defaults to qwen/qwen3.8-27b
+ *
+ * Empty values keep those features off and the app falls back to the offline
+ * estimate / on-device metrics.
  */
 val directionsApiKey: String = run {
     val props = Properties()
@@ -19,6 +24,30 @@ val directionsApiKey: String = run {
     (props.getProperty("GOOGLE_DIRECTIONS_API_KEY")
         ?: System.getenv("GOOGLE_DIRECTIONS_API_KEY")
         ?: "")
+        .trim()
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+}
+
+val groqApiKey: String = run {
+    val props = Properties()
+    val local = rootProject.file("local.properties")
+    if (local.exists()) local.inputStream().use { props.load(it) }
+    (props.getProperty("GROQ_API_KEY")
+        ?: System.getenv("GROQ_API_KEY")
+        ?: "")
+        .trim()
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+}
+
+val groqVisionModel: String = run {
+    val props = Properties()
+    val local = rootProject.file("local.properties")
+    if (local.exists()) local.inputStream().use { props.load(it) }
+    (props.getProperty("GROQ_VISION_MODEL")
+        ?: System.getenv("GROQ_VISION_MODEL")
+        ?: "qwen/qwen3.8-27b")
         .trim()
         .replace("\\", "\\\\")
         .replace("\"", "\\\"")
@@ -36,6 +65,8 @@ android {
         versionName = "1.0"
 
         buildConfigField("String", "DIRECTIONS_API_KEY", "\"$directionsApiKey\"")
+        buildConfigField("String", "GROQ_API_KEY", "\"$groqApiKey\"")
+        buildConfigField("String", "GROQ_VISION_MODEL", "\"$groqVisionModel\"")
     }
 
     buildTypes {

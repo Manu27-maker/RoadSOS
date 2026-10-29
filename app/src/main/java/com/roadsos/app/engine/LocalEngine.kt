@@ -31,9 +31,9 @@ import kotlin.math.roundToInt
  * The whole RoadSOS pipeline, on the phone.
  *
  * Triage, fusion, storage, contact alerts, responder ranking, geofencing and
- * the highway board all run here. The only optional network call is
- * [RoutingEngine], reached only when the user turns on online routing; with
- * the toggle off (the default) the app never opens a socket.
+ * the highway board all run here. Network calls are optional and user-visible:
+ * [RoutingEngine] for a live route and [CloudVision] for vehicle details. With
+ * online mode forced off the app never opens a socket.
  */
 object LocalEngine {
 
@@ -101,6 +101,10 @@ object LocalEngine {
         file: File,
         description: String,
         sceneTags: Map<String, Boolean>,
+        cloudEnabled: Boolean = false,
+        cloudAvailable: Boolean = false,
+        groqKey: String = "",
+        groqModel: String = CloudVision.DEFAULT_MODEL,
     ): Pair<String, VisionResult> =
         withContext(Dispatchers.IO) {
             if (!file.exists()) throw IllegalArgumentException("The photo file is missing.")
@@ -111,7 +115,30 @@ object LocalEngine {
             val vision: VisionResult
             val imageId = UUID.randomUUID().toString().replace("-", "").take(16)
             try {
-                vision = VisionEngine.analyze(bitmap, sceneTags)
+                val heuristic = VisionEngine.analyze(bitmap, sceneTags)
+                vision = if (cloudEnabled && cloudAvailable && groqKey.isNotBlank()) {
+                    runCatching {
+                        CloudVision.analyze(bitmap, groqKey, groqModel)
+                    }.map { cloud ->
+                        VisionEngine.applyTags(cloud, sceneTags)
+                    }.getOrElse { error ->
+                        val reason = error.message?.take(140) ?: error.javaClass.simpleName
+                        heuristic.copy(
+                            note = heuristic.note +
+                                " Cloud vision was unavailable ($reason), so this result is on-device only.",
+                        )
+                    }
+                } else {
+                    val reason = when {
+                        !cloudEnabled -> "Online photo analysis is off in Setup."
+                        !cloudAvailable -> "No internet connection right now."
+                        else -> "No Groq vision key is configured."
+                    }
+                    heuristic.copy(
+                        note = heuristic.note +
+                            " $reason Showing on-device metrics; cloud vehicle details resume when it is available.",
+                    )
+                }
                 // Re-encoding into app storage drops EXIF/GPS before the photo is kept.
                 VisionEngine.writeCleanJpeg(bitmap, db.photoFile(imageId))
             } finally {

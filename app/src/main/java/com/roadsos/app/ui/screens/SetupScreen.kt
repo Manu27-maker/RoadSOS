@@ -60,6 +60,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -121,6 +122,7 @@ fun SetupScreen(vm: MainViewModel, snackbar: SnackbarHostState) {
     var permissionTick by remember { mutableIntStateOf(0) }
     var confirmReset by remember { mutableStateOf(false) }
     var confirmWipeData by remember { mutableStateOf(false) }
+    var groqKeyInput by remember { mutableStateOf("") }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -147,8 +149,9 @@ fun SetupScreen(vm: MainViewModel, snackbar: SnackbarHostState) {
         Spacer(Modifier.height(6.dp))
         Text("Setup", color = TextMain, style = MaterialTheme.typography.headlineMedium)
         Text(
-            "Everything runs on this phone - triage, storage and alerts. No server. " +
-                "Live routing is used automatically when online; switch it off to force offline.",
+            "Everything runs on this phone - triage, storage and alerts. No RoadSOS server. " +
+                "Live routing and cloud photo analysis are used automatically when online; " +
+                "switch either one off to stay offline.",
             color = TextMuted,
             fontSize = 12.sp,
             lineHeight = 17.sp,
@@ -185,7 +188,15 @@ fun SetupScreen(vm: MainViewModel, snackbar: SnackbarHostState) {
                     }
                 }
 
-                HealthDetail(label = "Triage", value = "Rules + heuristic CV (v${vm.engineVersion})")
+                HealthDetail(label = "Triage", value = "Rules + heuristic CV + optional cloud vision (v${vm.engineVersion})")
+                HealthDetail(
+                    label = "Photo AI",
+                    value = when {
+                        !vm.onlineVision -> "Off - on-device metrics only"
+                        !vm.groqKeyConfigured -> "Auto - no Groq key, on-device metrics"
+                        else -> "Auto - cloud vehicle details when online"
+                    },
+                )
                 HealthDetail(
                     label = "Network",
                     value = if (vm.onlineRouting) {
@@ -309,6 +320,146 @@ fun SetupScreen(vm: MainViewModel, snackbar: SnackbarHostState) {
                 Text(
                     "The key is injected at build time from the untracked local.properties and is " +
                         "extractable from the APK. Restrict it by package name and SHA-1 in Google Cloud.",
+                    color = TextDim,
+                    fontSize = 9.sp,
+                    lineHeight = 13.sp,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+            }
+        }
+
+        Spacer(Modifier.height(14.dp))
+
+        // ------------------------------------------------------- cloud vision
+        SectionLabel("Photo analysis")
+        Spacer(Modifier.height(8.dp))
+        PanelCard(accent = if (vm.onlineVision && vm.groqKeyConfigured) Cyan else null) {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "Online vision: vehicle details",
+                            color = TextMain,
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            when {
+                                !vm.onlineVision -> "OFF - on-device metrics only"
+                                vm.groqKeyConfigured -> "AUTO - cloud when online"
+                                else -> "NO KEY - add one below"
+                            },
+                            color = if (vm.onlineVision && vm.groqKeyConfigured) Cyan else TextMuted,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 0.4.sp,
+                            modifier = Modifier.padding(top = 2.dp),
+                        )
+                    }
+                    Switch(
+                        checked = vm.onlineVision,
+                        onCheckedChange = { enabled ->
+                            vm.setOnlineVisionEnabled(enabled)
+                            scope.launch {
+                                snackbar.showSnackbar(
+                                    if (enabled) {
+                                        "Cloud vision auto: vehicle details when online."
+                                    } else {
+                                        "Cloud vision off. Only on-device metrics will be shown."
+                                    },
+                                )
+                            }
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.Black,
+                            checkedTrackColor = Cyan,
+                            uncheckedThumbColor = TextMuted,
+                            uncheckedTrackColor = PanelRaised,
+                            uncheckedBorderColor = Stroke,
+                        ),
+                    )
+                }
+
+                Text(
+                    "When the phone is online and a key is set, the sanitized photo (EXIF/GPS already " +
+                        "removed) is sent to Groq's vision model. It returns vehicle count, type, colour, " +
+                        "number plate if readable, hazards and severity. No contacts, report text, device " +
+                        "ID or coordinates are sent. Offline, or with this switch off, RoadSOS shows the " +
+                        "measured on-device metrics instead.",
+                    color = TextMuted,
+                    fontSize = 10.sp,
+                    lineHeight = 15.sp,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier
+                            .size(7.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(if (vm.groqKeyConfigured) Green else Amber),
+                    )
+                    Text(
+                        when {
+                            vm.groqKeyFromUser -> "Groq key saved on this phone"
+                            vm.groqKeyFromBuild -> "Groq key configured in this build"
+                            else -> "No Groq key - paste one below to enable cloud vision"
+                        },
+                        color = if (vm.groqKeyConfigured) TextMuted else Amber,
+                        fontSize = 9.sp,
+                        lineHeight = 13.sp,
+                        modifier = Modifier.padding(start = 6.dp),
+                    )
+                }
+
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = groqKeyInput,
+                    onValueChange = { groqKeyInput = it.take(120) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = {
+                        Text(
+                            if (vm.groqKeyConfigured) "Replace Groq key" else "Groq API key",
+                            color = TextMuted,
+                        )
+                    },
+                    placeholder = { Text("gsk_...", color = TextDim, fontSize = 12.sp) },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = setupFieldColors(),
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SecondaryAction(
+                        text = "Save key",
+                        onClick = {
+                            val error = vm.saveGroqKey(groqKeyInput)
+                            if (error == null) {
+                                groqKeyInput = ""
+                                scope.launch { snackbar.showSnackbar("Groq key saved on this phone.") }
+                            } else {
+                                scope.launch { snackbar.showSnackbar(error) }
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (vm.groqKeyFromUser) {
+                        SecondaryAction(
+                            text = "Remove",
+                            onClick = {
+                                vm.clearGroqKey()
+                                groqKeyInput = ""
+                                scope.launch { snackbar.showSnackbar("Saved Groq key removed.") }
+                            },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+                Text(
+                    "The key is stored only in this app's private preferences. A key compiled into a " +
+                        "public APK can be extracted, so runtime entry is preferred. Model: ${vm.groqModel}.",
                     color = TextDim,
                     fontSize = 9.sp,
                     lineHeight = 13.sp,

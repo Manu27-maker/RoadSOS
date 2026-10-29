@@ -32,6 +32,12 @@ data class TextResult(
 )
 
 @Immutable
+data class VisionDetail(
+    val label: String,
+    val value: String,
+)
+
+@Immutable
 data class VisionResult(
     val score: Int? = null,
     val severity: String? = null,
@@ -44,6 +50,13 @@ data class VisionResult(
     @SerializedName("visible_injuries") val visibleInjuries: Boolean? = null,
     @SerializedName("low_light") val lowLight: Boolean? = null,
     @SerializedName("vehicles_count") val vehiclesCount: Int? = null,
+    @SerializedName("vehicle_types") val vehicleTypes: List<String>? = null,
+    @SerializedName("vehicle_colors") val vehicleColors: List<String>? = null,
+    @SerializedName("number_plate") val numberPlate: String? = null,
+    /** Human-readable breakdown of what produced this result (metrics or model fields). */
+    @SerializedName("analysis_details") val analysisDetails: List<VisionDetail>? = null,
+    /** Explanation when a cloud call failed and the on-device estimate is shown instead. */
+    val note: String? = null,
 )
 
 @Immutable

@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Matrix
 import androidx.exifinterface.media.ExifInterface
+import com.roadsos.app.data.VisionDetail
 import com.roadsos.app.data.VisionResult
 import java.io.File
 import java.io.FileOutputStream
@@ -212,11 +213,24 @@ object VisionEngine {
             visibleInjuries = false,
             lowLight = metrics.lowLight,
             vehiclesCount = 0,
+            analysisDetails = metricDetails(metrics),
+            note = "On-device metric analysis. No object model ran, so vehicle type, colour and " +
+                "count are not identified.",
         )
     }
 
+    /** Real measured values, shown so the result is inspectable rather than a black box. */
+    private fun metricDetails(metrics: Metrics): List<VisionDetail> = listOf(
+        VisionDetail("Brightness", "${metrics.meanLuma.roundToInt()}/255"),
+        VisionDetail("Dark pixels", "${(metrics.darkRatio * 100).roundToInt()}%"),
+        VisionDetail("Red pixels", "${(metrics.redRatio * 100).roundToInt()}%"),
+        VisionDetail("Edge density", "${(metrics.edgeDensity * 100).roundToInt()}%"),
+        VisionDetail("Saturation", "${(metrics.saturation * 100).roundToInt()}%"),
+        VisionDetail("Night scene", if (metrics.lowLight) "yes" else "no"),
+    )
+
     /** Reporter confirmation wins over the heuristic - they are physically there. */
-    private fun applyTags(result: VisionResult, sceneTags: Map<String, Boolean>): VisionResult {
+    fun applyTags(result: VisionResult, sceneTags: Map<String, Boolean>): VisionResult {
         if (sceneTags.isEmpty()) return result
 
         var fire = result.fireOrSmoke
@@ -229,7 +243,7 @@ object VisionEngine {
         sceneTags["visible_injuries"]?.let { injuries = it }
         sceneTags["road_blocked"]?.let { blocked = it }
         // "multiple_vehicles" is a reporter tag consumed by the text rules.
-        // The photo engine has no object detection, so it never invents a count.
+        // A count is only shown when the cloud model returned one.
 
         var severity = result.severity ?: "Medium"
         if (fire == true || overturned == true || injuries == true) {
@@ -237,8 +251,11 @@ object VisionEngine {
         }
 
         val score = maxOf(result.score ?: 0, SEVERITY_BASE[severity] ?: 0)
-        var confidence = result.confidence ?: 0.35
-        if (result.lowLight == true && confidence > 0.62) confidence = 0.62
+        val confidence = if (result.lowLight == true && (result.confidence ?: 1.0) > 0.62) {
+            0.62
+        } else {
+            result.confidence
+        }
 
         return result.copy(
             score = score,
@@ -249,8 +266,7 @@ object VisionEngine {
             overturned = overturned,
             visibleInjuries = injuries,
             roadBlocked = blocked,
-            vehiclesCount = 0,
-            lowLight = result.lowLight == true,
+            lowLight = result.lowLight,
         )
     }
 
